@@ -1,7 +1,7 @@
 {
     "Group": "Example",
-    "Name": "ExamplePlugin",
-    "Main": "com.example.mod.ExamplePlugin",
+    "Name": "TestMod",
+    "Main": "com.example.mod.TestMod",
     "Version": "0.0.2",
     "Description": "Hytale mod in Kotlin!",
     "Authors": [
