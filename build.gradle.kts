@@ -15,11 +15,28 @@ repositories {
 }
 
 dependencies {
-    val hytaleHome = "${System.getProperty("user.home")}/AppData/Roaming/Hytale"
-    val patchline = "release" 
-    
+    val hytaleJar = run {
+        val userHome = System.getProperty("user.home")
+        val os = System.getProperty("os.name").lowercase()
+        val patchline = "release"
+        val relativePath = "install/$patchline/package/game/latest/Server/HytaleServer.jar"
+
+        val candidates = mutableListOf<String>()
+        if (os.contains("win")) {
+            candidates.add("$userHome/AppData/Roaming/Hytale/$relativePath")
+        } else if (os.contains("mac")) {
+            candidates.add("$userHome/Application Support/Hytale/$relativePath")
+            candidates.add("$userHome/Library/Application Support/Hytale/$relativePath")
+        } else {
+            val xdgDataHome = System.getenv("XDG_DATA_HOME")
+            val linuxBase = if (!xdgDataHome.isNullOrEmpty()) xdgDataHome else "$userHome/.local/share"
+            candidates.add("$linuxBase/Hytale/$relativePath")
+        }
+        candidates.firstOrNull { File(it).exists() } ?: candidates.first()
+    }
+
     // Hytale Server API
-    compileOnly(files("$hytaleHome/install/$patchline/package/game/latest/Server/HytaleServer.jar"))
+    compileOnly(files(hytaleJar))
     
     // Common dependencies
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
