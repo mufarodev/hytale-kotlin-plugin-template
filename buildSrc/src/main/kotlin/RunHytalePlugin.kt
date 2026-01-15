@@ -5,6 +5,8 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskProvider
 import java.io.File
 import java.util.Properties
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
 
 open class RunHytalePlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -21,7 +23,9 @@ open class RunHytalePlugin : Plugin<Project> {
     }
 }
 
-open class RunServerTask : DefaultTask() {
+abstract class RunServerTask : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
 
     @TaskAction
     fun run() {
@@ -31,20 +35,30 @@ open class RunServerTask : DefaultTask() {
         val pluginsDir = File(runDir, "plugins")
         if (!pluginsDir.exists()) pluginsDir.mkdirs()
 
-        // Locate Hytale Server JAR
-        // 1. Check local run folder
-        // 2. Check standard Hytale install location (Windows)
         var jarFile = File(runDir, "HytaleServer.jar")
         
         if (!jarFile.exists()) {
             val userHome = System.getProperty("user.home")
-            // Try to find it in the standard location (assuming release channel)
-            val standardPath = File("$userHome/AppData/Roaming/Hytale/install/release/package/game/latest/Server/HytaleServer.jar")
-            if (standardPath.exists()) {
+            val os = System.getProperty("os.name").lowercase()
+            val candidates = mutableListOf<File>()
+
+            if (os.contains("win")) {
+                candidates.add(File("$userHome/AppData/Roaming/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"))
+            } else if (os.contains("mac")) {
+                candidates.add(File("$userHome/Application Support/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"))
+                candidates.add(File("$userHome/Library/Application Support/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"))
+            } else {
+                val xdgDataHome = System.getenv("XDG_DATA_HOME")
+                val linuxBase = if (!xdgDataHome.isNullOrEmpty()) xdgDataHome else "$userHome/.local/share"
+                candidates.add(File("$linuxBase/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"))
+            }
+
+            val standardPath = candidates.firstOrNull { it.exists() }
+            if (standardPath != null) {
                 println("Found HytaleServer.jar at standard location: ${standardPath.absolutePath}")
                 jarFile = standardPath
             } else {
-                println("Hytale server JAR not found in ${runDir.absolutePath} or standard location.")
+                println("Hytale server JAR not found in ${runDir.absolutePath} or standard locations: ${candidates.map { it.absolutePath }}")
                 throw RuntimeException("HytaleServer.jar not found! Please place it in the 'run' folder or ensure Hytale is installed.")
             }
         }
@@ -65,19 +79,15 @@ open class RunServerTask : DefaultTask() {
         }
         
         javaArgs.addAll(listOf("-jar", jarFile.absolutePath))
-        // Add args required for Hytale to run
         javaArgs.add("--allow-op")
         
-        // If we are using the external JAR, we might need to point assets to the right place
-        if (jarFile.absolutePath.contains("AppData")) {
-             val assetsFile = File(jarFile.parentFile.parentFile, "Assets.zip") // Server/../Assets.zip ? Check path.
-             // Based on previous build.gradle: .../game/latest/Assets.zip is parent of Server/? No.
-             // previous: .../game/latest/Server/HytaleServer.jar
-             // previous asset: .../game/latest/Assets.zip
-             // So assets is in jarFile.parentFile.parentFile
-             if (File(jarFile.parentFile.parentFile, "Assets.zip").exists()) {
+        // If we are using an external JAR, point assets to the right place relative to it
+        val defaultJarInRun = File(runDir, "HytaleServer.jar")
+        if (jarFile.absolutePath != defaultJarInRun.absolutePath) {
+             val assetsFile = File(jarFile.parentFile.parentFile, "Assets.zip")
+             if (assetsFile.exists()) {
                  javaArgs.add("--assets")
-                 javaArgs.add(File(jarFile.parentFile.parentFile, "Assets.zip").absolutePath)
+                 javaArgs.add(assetsFile.absolutePath)
              }
         } else {
              javaArgs.add("--assets")
@@ -87,21 +97,10 @@ open class RunServerTask : DefaultTask() {
         // Use the same Java as Gradle or find one
         val javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java"
         
-        val process = ProcessBuilder(javaBin, *javaArgs.toTypedArray())
-            .directory(runDir)
-            .redirectErrorStream(true)
-            .start()
-
-        // Shutdown hook
-        Runtime.getRuntime().addShutdownHook(Thread {
-            if (process.isAlive) process.destroy()
-        })
-
-        // Pipe output
-        process.inputStream.bufferedReader().useLines { lines ->
-            lines.forEach { println(it) }
+        execOperations.exec {
+            workingDir = runDir
+            commandLine = listOf(javaBin) + javaArgs
+            standardInput = System.`in`
         }
-        
-        process.waitFor()
     }
 }
