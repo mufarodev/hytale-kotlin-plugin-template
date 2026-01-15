@@ -2,8 +2,8 @@ plugins {
     `java-library`
     id("com.gradleup.shadow") version "8.3.0"
     id("run-hytale")
-    kotlin("jvm") version "2.1.0"
-    kotlin("plugin.serialization") version "2.1.0"
+    kotlin("jvm") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
 group = findProperty("pluginGroup") as String
@@ -48,12 +48,12 @@ dependencies {
 tasks {
     compileJava {
         options.encoding = Charsets.UTF_8.name()
-        options.release.set(21)
+        options.release.set(25)
     }
     
     compileKotlin {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
         }
     }
     
@@ -80,6 +80,6 @@ tasks {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }

@@ -32,8 +32,8 @@ abstract class RunServerTask : DefaultTask() {
         val runDir = File(project.projectDir, "run")
         if (!runDir.exists()) runDir.mkdirs()
         
-        val pluginsDir = File(runDir, "plugins")
-        if (!pluginsDir.exists()) pluginsDir.mkdirs()
+        val modsDir = File(runDir, "mods")
+        if (!modsDir.exists()) modsDir.mkdirs()
 
         var jarFile = File(runDir, "HytaleServer.jar")
         
@@ -65,7 +65,7 @@ abstract class RunServerTask : DefaultTask() {
 
         // Copy plugin JAR
         project.tasks.findByName("shadowJar")?.outputs?.files?.firstOrNull()?.let { shadowJar ->
-            val targetFile = File(pluginsDir, shadowJar.name)
+            val targetFile = File(modsDir, shadowJar.name)
             shadowJar.copyTo(targetFile, overwrite = true)
             println("Plugin copied to: ${targetFile.absolutePath}")
         }
