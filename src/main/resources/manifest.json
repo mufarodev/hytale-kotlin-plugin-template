@@ -2,7 +2,7 @@
     "Group": "Example",
     "Name": "TestMod",
     "Main": "com.example.mod.TestMod",
-    "Version": "0.0.2",
+    "Version": "${version}",
     "Description": "Hytale mod in Kotlin!",
     "Authors": [
         {
